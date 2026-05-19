@@ -1,0 +1,238 @@
+// src/controllers/taskController.js
+
+const Task = require('../models/Task');
+
+// ===============================
+// Create New Task
+// ===============================
+
+const createTask = async (request, response) => {
+  try {
+    const {
+      title,
+      description,
+      priority,
+      dueDate,
+      category
+    } = request.body;
+
+    const authenticatedUserId = request.userId;
+
+    const newlyCreatedTask = await Task.create({
+      title,
+      description,
+      priority,
+      dueDate,
+      category,
+      user: authenticatedUserId
+    });
+
+    response.status(201).json({
+      success: true,
+      message: 'Task created successfully',
+      data: newlyCreatedTask
+    });
+  } catch (taskCreationError) {
+    response.status(500).json({
+      success: false,
+      message: 'Failed to create task',
+      error: taskCreationError.message
+    });
+  }
+};
+
+// ===============================
+// Get All Tasks
+// ===============================
+
+const getTasks = async (request, response) => {
+  try {
+    const authenticatedUserId = request.userId;
+
+    const {
+      page = 1,
+      limit = 10,
+      completed,
+      priority,
+      category
+    } = request.query;
+
+    // Build filtering object
+    const taskFilter = {
+      user: authenticatedUserId
+    };
+
+    // Filter by completion status
+    if (completed !== undefined) {
+      taskFilter.completed = completed === 'true';
+    }
+
+    // Filter by priority
+    if (priority) {
+      taskFilter.priority = priority;
+    }
+
+    // Filter by category
+    if (category) {
+      taskFilter.category = category;
+    }
+
+    // Convert query values into numbers
+    const currentPage = parseInt(page, 10);
+    const tasksPerPage = parseInt(limit, 10);
+
+    // Fetch paginated tasks
+    const taskList = await Task.find(taskFilter)
+      .sort({ createdAt: -1 })
+      .skip((currentPage - 1) * tasksPerPage)
+      .limit(tasksPerPage);
+
+    // Count total tasks
+    const totalTasks = await Task.countDocuments(taskFilter);
+
+    response.status(200).json({
+      success: true,
+      message: 'Tasks retrieved successfully',
+      data: taskList,
+      pagination: {
+        currentPage,
+        tasksPerPage,
+        totalTasks,
+        totalPages: Math.ceil(totalTasks / tasksPerPage)
+      }
+    });
+  } catch (taskRetrievalError) {
+    response.status(500).json({
+      success: false,
+      message: 'Failed to retrieve tasks',
+      error: taskRetrievalError.message
+    });
+  }
+};
+
+// ===============================
+// Get Single Task By ID
+// ===============================
+
+const getTaskById = async (request, response) => {
+  try {
+    const taskId = request.params.id;
+
+    const authenticatedUserId = request.userId;
+
+    const existingTask = await Task.findOne({
+      _id: taskId,
+      user: authenticatedUserId
+    });
+
+    if (!existingTask) {
+      return response.status(404).json({
+        success: false,
+        message: 'Task not found'
+      });
+    }
+
+    response.status(200).json({
+      success: true,
+      data: existingTask
+    });
+  } catch (singleTaskError) {
+    response.status(500).json({
+      success: false,
+      message: 'Failed to retrieve task',
+      error: singleTaskError.message
+    });
+  }
+};
+
+// ===============================
+// Update Task
+// ===============================
+
+const updateTask = async (request, response) => {
+  try {
+    const taskId = request.params.id;
+
+    const authenticatedUserId = request.userId;
+
+    const updatedTaskData = request.body;
+
+    const updatedTask = await Task.findOneAndUpdate(
+      {
+        _id: taskId,
+        user: authenticatedUserId
+      },
+      updatedTaskData,
+      {
+        new: true,
+        runValidators: true
+      }
+    );
+
+    if (!updatedTask) {
+      return response.status(404).json({
+        success: false,
+        message: 'Task not found or unauthorized'
+      });
+    }
+
+    response.status(200).json({
+      success: true,
+      message: 'Task updated successfully',
+      data: updatedTask
+    });
+  } catch (taskUpdateError) {
+    response.status(500).json({
+      success: false,
+      message: 'Failed to update task',
+      error: taskUpdateError.message
+    });
+  }
+};
+
+// ===============================
+// Delete Task
+// ===============================
+
+const deleteTask = async (request, response) => {
+  try {
+    const taskId = request.params.id;
+
+    const authenticatedUserId = request.userId;
+
+    const deletedTask = await Task.findOneAndDelete({
+      _id: taskId,
+      user: authenticatedUserId
+    });
+
+    if (!deletedTask) {
+      return response.status(404).json({
+        success: false,
+        message: 'Task not found or unauthorized'
+      });
+    }
+
+    response.status(200).json({
+      success: true,
+      message: 'Task deleted successfully'
+    });
+  } catch (taskDeletionError) {
+    response.status(500).json({
+      success: false,
+      message: 'Failed to delete task',
+      error: taskDeletionError.message
+    });
+  }
+};
+
+// ===============================
+// Export Controller Functions
+// ===============================
+
+module.exports = {
+  createTask,
+  getTasks,
+  getTaskById,
+  updateTask,
+  deleteTask
+};

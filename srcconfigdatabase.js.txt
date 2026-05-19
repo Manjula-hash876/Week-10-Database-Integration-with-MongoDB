@@ -1,0 +1,41 @@
+// src/config/database.js
+
+const mongoose = require('mongoose');
+
+// ===============================
+// MongoDB Database Connection
+// ===============================
+
+const connectToDatabase = async () => {
+  try {
+    // Retrieve MongoDB connection string from environment variables
+    const databaseConnectionUri =
+      process.env.MONGODB_URI;
+
+    // Validate database URI
+    if (!databaseConnectionUri) {
+      throw new Error(
+        'MongoDB connection string is missing in environment variables'
+      );
+    }
+
+    // Connect to MongoDB Atlas
+    await mongoose.connect(databaseConnectionUri);
+
+    console.log('✅ MongoDB database connected successfully');
+  } catch (databaseConnectionError) {
+    console.error(
+      '❌ Failed to connect to MongoDB database:',
+      databaseConnectionError.message
+    );
+
+    // Stop application if database connection fails
+    process.exit(1);
+  }
+};
+
+// ===============================
+// Export Database Connection
+// ===============================
+
+module.exports = connectToDatabase;

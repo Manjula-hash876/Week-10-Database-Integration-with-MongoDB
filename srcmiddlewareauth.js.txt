@@ -1,0 +1,66 @@
+// src/middleware/auth.js
+
+const jwt = require('jsonwebtoken');
+
+// ===============================
+// Authentication Middleware
+// ===============================
+
+const authenticateUser = async (
+  request,
+  response,
+  next
+) => {
+  try {
+    // Retrieve authorization header
+    const authorizationHeader =
+      request.headers.authorization;
+
+    // Check if authorization header exists
+    if (!authorizationHeader) {
+      return response.status(401).json({
+        success: false,
+        message: 'Access denied. Authorization token is missing'
+      });
+    }
+
+    // Validate Bearer token format
+    const isBearerToken =
+      authorizationHeader.startsWith('Bearer ');
+
+    if (!isBearerToken) {
+      return response.status(401).json({
+        success: false,
+        message: 'Invalid authorization format'
+      });
+    }
+
+    // Extract token from header
+    const authenticationToken =
+      authorizationHeader.split(' ')[1];
+
+    // Verify JWT token
+    const decodedToken = jwt.verify(
+      authenticationToken,
+      process.env.JWT_SECRET_KEY
+    );
+
+    // Attach authenticated user ID to request object
+    request.userId = decodedToken.userId;
+
+    // Continue to next middleware/controller
+    next();
+  } catch (authenticationError) {
+    response.status(401).json({
+      success: false,
+      message: 'Authentication failed. Invalid or expired token',
+      error: authenticationError.message
+    });
+  }
+};
+
+// ===============================
+// Export Middleware
+// ===============================
+
+module.exports = authenticateUser;
